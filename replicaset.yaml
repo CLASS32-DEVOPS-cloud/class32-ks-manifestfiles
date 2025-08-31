@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: cameroon-deli-app
+  labels:
+    app: cameroon-deli
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cameroon-deli
+  template:
+    metadata:
+      labels:
+        app: cameroon-deli
+    spec:
+      containers:
+      - name: cameroon-deli-app
+        image: liontechacademy/cameroon-deli:v1
+
+        ports:
+        - containerPort: 6000
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 6000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 6000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cameroon-deli-service
+spec:
+  selector:
+    app: cameroon-deli
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 6000
+  type: NodePort

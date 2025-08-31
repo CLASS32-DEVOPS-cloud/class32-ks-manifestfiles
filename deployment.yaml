@@ -1,11 +1,11 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: ReplicaSet
 metadata:
   name: cameroon-deli-app
   labels:
     app: cameroon-deli
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: cameroon-deli
@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: cameroon-deli-app
-        image: cameroon-deli-app:latest
+        image: liontechacademy/cameroon-deli:v1
+
         ports:
         - containerPort: 6000
         env:
@@ -46,4 +47,4 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 6000
-  type: LoadBalancer
+  type: NodePort

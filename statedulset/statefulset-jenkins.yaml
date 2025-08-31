@@ -1,198 +1,67 @@
----
-# Jenkins Namespace
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: jenkins
-  labels:
-    name: jenkins
----
-# Service Account for Jenkins
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: jenkins
-  namespace: jenkins
----
-# ClusterRole for Jenkins (if you need cluster-wide permissions)
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: jenkins-cluster-role
-rules:
-- apiGroups: [""]
-  resources: ["pods", "services", "configmaps", "secrets", "persistentvolumeclaims"]
-  verbs: ["get", "list", "watch", "create", "update", "delete"]
-- apiGroups: ["apps"]
-  resources: ["deployments", "statefulsets", "replicasets"]
-  verbs: ["get", "list", "watch", "create", "update", "delete"]
----
-# ClusterRoleBinding for Jenkins
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: jenkins-cluster-role-binding
-subjects:
-- kind: ServiceAccount
-  name: jenkins
-  namespace: jenkins
-roleRef:
-  kind: ClusterRole
-  name: jenkins-cluster-role
-  apiGroup: rbac.authorization.k8s.io
----
-# Persistent Volume Claim for Jenkins data
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jenkins-data
-  namespace: jenkins
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: standard # Change this to match your storage class
-  resources:
-    requests:
-      storage: 20Gi
----
-# ConfigMap for Jenkins configuration
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: jenkins-config
-  namespace: jenkins
-data:
-  JAVA_OPTS: "-Djenkins.install.runSetupWizard=false -Djava.awt.headless=true"
-  JENKINS_OPTS: "--httpPort=8080"
-  CASC_JENKINS_CONFIG: "/var/jenkins_home/casc.yaml"
----
-# Jenkins Service
+# redis-statefulset.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: jenkins
-  namespace: jenkins
+  name: redis-service
   labels:
-    app: jenkins
+    app: redis
 spec:
-  type: ClusterIP # Use LoadBalancer or NodePort for external access
   ports:
-  - port: 8080
-    targetPort: 8080
-    name: http
-  - port: 50000
-    targetPort: 50000
-    name: agent
+  - port: 6379
+    name: redis
+  clusterIP: None
   selector:
-    app: jenkins
+    app: redis
 ---
-# Jenkins StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: jenkins
-  namespace: jenkins
+  name: redis
 spec:
-  serviceName: jenkins
-  replicas: 1
+  serviceName: "redis-service"
+  replicas: 3
   selector:
     matchLabels:
-      app: jenkins
+      app: redis
   template:
     metadata:
       labels:
-        app: jenkins
+        app: redis
     spec:
-      serviceAccountName: jenkins
-      terminationGracePeriodSeconds: 30
       containers:
-      - name: jenkins
-        image: jenkins/jenkins:lts-jdk17
-        imagePullPolicy: IfNotPresent
+      - name: redis
+        image: redis:7-alpine
         ports:
-        - containerPort: 8080
-          name: http
-        - containerPort: 50000
-          name: agent
-        env:
-        - name: JAVA_OPTS
-          valueFrom:
-            configMapKeyRef:
-              name: jenkins-config
-              key: JAVA_OPTS
-        - name: JENKINS_OPTS
-          valueFrom:
-            configMapKeyRef:
-              name: jenkins-config
-              key: JENKINS_OPTS
-        - name: CASC_JENKINS_CONFIG
-          valueFrom:
-            configMapKeyRef:
-              name: jenkins-config
-              key: CASC_JENKINS_CONFIG
+        - containerPort: 6379
+          name: redis
+        command: ["redis-server"]
+        args: ["--appendonly", "yes"]
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
-        volumeMounts:
-        - name: jenkins-data
-          mountPath: /var/jenkins_home
-        - name: jenkins-config-volume
-          mountPath: /var/jenkins_home/casc.yaml
-          subPath: casc.yaml
-        livenessProbe:
-          httpGet:
-            path: /login
-            port: 8080
-          initialDelaySeconds: 90
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 5
+            memory: "512Mi"
+            cpu: "500m"
         readinessProbe:
-          httpGet:
-            path: /login
-            port: 8080
-          initialDelaySeconds: 60
+          exec:
+            command: ["redis-cli", "ping"]
+          initialDelaySeconds: 5
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-      volumes:
-      - name: jenkins-config-volume
-        configMap:
-          name: jenkins-config
-          items:
-          - key: casc.yaml
-            path: casc.yaml
+        livenessProbe:
+          exec:
+            command: ["redis-cli", "ping"]
+          initialDelaySeconds: 30
+          periodSeconds: 15
   volumeClaimTemplates:
   - metadata:
-      name: jenkins-data
+      name: redis-data
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: standard # Change this to match your storage class
+      storageClassName: "ebs-sc"
       resources:
         requests:
-          storage: 20Gi
----
-# Optional: Ingress for external access (uncomment if needed)
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: jenkins-ingress
-#   namespace: jenkins
-#   annotations:
-#     nginx.ingress.kubernetes.io/rewrite-target: /
-# spec:
-#   rules:
-#   - host: jenkins.example.com
-#     http:
-#       paths:
-#       - path: /
-#         pathType: Prefix
-#         backend:
-#           service:
-#             name: jenkins
-#             port:
-#               number: 8080
+          storage: 10Gi
