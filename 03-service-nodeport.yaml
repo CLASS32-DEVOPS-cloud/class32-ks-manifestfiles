@@ -1,0 +1,17 @@
+---
+# 1. Create a NodePort Service to expose a Deployment/Pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-nodeport
+  namespace: default  # Change to your target namespace
+spec:
+  type: NodePort
+  selector:
+    app: my-app  # Must match labels of your Pod/Deployment
+  ports:
+    - name: http
+      port: 80       # Service port (cluster-internal)
+      targetPort: 80 # Pod port (must match containerPort)
+      nodePort: 31000 # External port (30000-32767 range)
+      protocol: TCP
