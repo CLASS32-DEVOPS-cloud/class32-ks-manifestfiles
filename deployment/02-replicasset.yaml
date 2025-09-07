@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: app9000-rs
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app9000-rs
+  template:
+    metadata:
+      labels:
+        app: app9000-rs
+    spec:
+      containers:
+      - name: app9000
+        image: liontechacademy/sonarqube:20250903-200853
+        ports:
+        - containerPort: 9000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app9000-rs-service
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: app9000-rs
+  ports:
+  - port: 9000
+    targetPort: 9000
+    nodePort: 30091  # You can choose a port between 30000-32767 or omit for auto
