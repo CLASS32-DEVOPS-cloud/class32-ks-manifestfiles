@@ -1,0 +1,58 @@
+---
+# Create the Namespace first
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rental
+---
+# Deployment for the Nexus Rental App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-rental-app
+  namespace: rental  # Deploy this into the 'rental' namespace
+  labels:
+    app: nexus-rental-app
+spec:
+  replicas: 1  # Start with one replica. Adjust as needed.
+  selector:
+    matchLabels:
+      app: nexus-rental-app
+  template:
+    metadata:
+      labels:
+        app: nexus-rental-app
+    spec:
+      containers:
+      - name: nexus-rental-app
+        image: liontechacademy/nexus-rentals:20250824-115103 # Specified image
+        ports:
+        - containerPort: 5000  # Expose port 5000 from the container
+        # Add liveness and readiness probes for robustness in a real environment
+        # livenessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: 5000
+        #   initialDelaySeconds: 30
+        #   periodSeconds: 10
+        # readinessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: 5000
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 5
+---
+# Service to expose the application internally within the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-rental-service
+  namespace: rental  # This service is also in the 'rental' namespace
+spec:
+  selector:
+    app: nexus-rental-app  # This service targets pods from our deployment
+  ports:
+    - protocol: TCP
+      port: 80          # The port this service listens on
+      targetPort: 5000  # The port on the Pods (containerPort) to forward traffic to
+  type: ClusterIP       # Service type is ClusterIP (internal only)
