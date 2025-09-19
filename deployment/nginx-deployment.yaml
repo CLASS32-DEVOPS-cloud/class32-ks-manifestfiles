@@ -13,10 +13,17 @@ spec:
         app: nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:latest
-        ports:
-        - containerPort: 80
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
@@ -25,10 +32,9 @@ metadata:
 spec:
   selector:
     app: nginx
+  type: NodePort
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
-      nodeport: 30080
-      type: NodePort
-      
+      nodePort: 30080

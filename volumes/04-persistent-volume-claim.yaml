@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: class32-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: class32-sc
+  resources:
+    requests:
+      storage: 5Gi
